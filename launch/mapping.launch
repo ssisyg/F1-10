@@ -1,0 +1,31 @@
+<launch>
+    <!-- Drive one lap and build a map with loop-closing SLAM (slam_toolbox).
+         The car starts at the origin of the map, so start it where the race will start.
+         Save the map when the lap is closed:
+             rosrun map_server map_saver -f ~/maps/track
+    -->
+    <arg name="drive" default="true" doc="true: drive the lap with follow_the_gap. false: drive it yourself (joystick or teleop)"/>
+    <arg name="max_speed" default="0.6" doc="Speed of the mapping lap in m/s (slow is better for mapping)"/>
+    <arg name="fake" default="false" doc="Dry run with the fake car (needs map_yaml of a test track)"/>
+    <arg name="odom_yaw_bias" default="0.03" doc="Only for fake:=true"/>
+    <arg name="map_yaml" default="" doc="Only for fake:=true. Map of the fake world"/>
+
+    <group unless="$(arg fake)">
+        <include file="$(find f1tenth_obstacle_avoidance)/launch/hardware.launch"/>
+    </group>
+    <group if="$(arg fake)">
+        <include file="$(find f1tenth_obstacle_avoidance)/launch/fake_car.launch">
+            <arg name="map_yaml" value="$(arg map_yaml)"/>
+            <arg name="odom_yaw_bias" value="$(arg odom_yaw_bias)"/>
+        </include>
+    </group>
+
+    <node pkg="slam_toolbox" type="async_slam_toolbox_node" name="slam_toolbox" output="screen">
+        <rosparam command="load" file="$(find f1tenth_obstacle_avoidance)/config/slam_toolbox_mapping.yaml"/>
+    </node>
+
+    <node if="$(arg drive)" pkg="f1tenth_obstacle_avoidance" type="follow_the_gap.py" name="follow_the_gap" output="screen">
+        <param name="max_speed" value="$(arg max_speed)"/>
+        <param name="min_speed" value="0.3"/>
+    </node>
+</launch>

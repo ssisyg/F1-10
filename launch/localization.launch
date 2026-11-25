@@ -1,0 +1,57 @@
+<launch>
+    <!-- Particle filter localization on a saved map: map_server + AMCL, and /pose (PoseStamped) from tf.
+         The car must start at the pose given below. By default this is the map origin, which is
+         where the car started when the map was built. -->
+    <arg name="map" doc="Full path of the map yaml file"/>
+    <arg name="initial_x" default="0.0"/>
+    <arg name="initial_y" default="0.0"/>
+    <arg name="initial_yaw" default="0.0" doc="radians"/>
+
+    <node pkg="map_server" type="map_server" name="map_server" args="$(arg map)" output="screen"/>
+
+    <node pkg="amcl" type="amcl" name="amcl" output="screen">
+        <remap from="scan" to="/scan"/>
+        <param name="odom_frame_id" value="odom"/>
+        <param name="base_frame_id" value="base_link"/>
+        <param name="global_frame_id" value="map"/>
+        <param name="tf_broadcast" value="true"/>
+        <param name="transform_tolerance" value="0.1"/>
+
+        <param name="initial_pose_x" value="$(arg initial_x)"/>
+        <param name="initial_pose_y" value="$(arg initial_y)"/>
+        <param name="initial_pose_a" value="$(arg initial_yaw)"/>
+        <param name="initial_cov_xx" value="0.05"/>
+        <param name="initial_cov_yy" value="0.05"/>
+        <param name="initial_cov_aa" value="0.05"/>
+
+        <param name="min_particles" value="300"/>
+        <param name="max_particles" value="2000"/>
+        <param name="kld_err" value="0.05"/>
+        <param name="update_min_d" value="0.02"/>
+        <param name="update_min_a" value="0.05"/>
+        <param name="resample_interval" value="1"/>
+        <param name="recovery_alpha_slow" value="0.001"/>
+        <param name="recovery_alpha_fast" value="0.1"/>
+        <param name="gui_publish_rate" value="-1.0"/>
+
+        <!-- Odometry model: our odometry drifts, so the noise is generous -->
+        <param name="odom_model_type" value="diff-corrected"/>
+        <param name="odom_alpha1" value="0.2"/>
+        <param name="odom_alpha2" value="0.2"/>
+        <param name="odom_alpha3" value="0.2"/>
+        <param name="odom_alpha4" value="0.2"/>
+
+        <!-- LiDAR model -->
+        <param name="laser_model_type" value="likelihood_field"/>
+        <param name="laser_max_beams" value="180"/>
+        <param name="laser_min_range" value="0.1"/>
+        <param name="laser_max_range" value="10.0"/>
+        <param name="laser_z_hit" value="0.9"/>
+        <param name="laser_z_rand" value="0.1"/>
+        <param name="laser_sigma_hit" value="0.05"/>
+        <param name="laser_likelihood_max_dist" value="2.0"/>
+    </node>
+
+    <!-- /pose for the planner and the controller (from the tf tree) -->
+    <node pkg="f1tenth_obstacle_avoidance" type="pose_relay.py" name="pose_relay" output="screen"/>
+</launch>

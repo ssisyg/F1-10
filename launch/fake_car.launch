@@ -1,0 +1,29 @@
+<launch>
+    <!-- TEST ONLY: a fake car (kinematic model, LiDAR simulated on the map) instead of the real hardware. -->
+    <arg name="map_yaml" doc="Map of the fake world (a test track from tools/make_test_track.py, for example)"/>
+    <arg name="init_x" default="0.0"/>
+    <arg name="init_y" default="0.0"/>
+    <arg name="init_yaw" default="0.0"/>
+    <arg name="obstacles" default="[]" doc="Static discs as [[x, y, radius], ...] in the map frame"/>
+    <arg name="moving_csv" default="" doc="Optional racing line csv: one disc drives along it"/>
+    <arg name="moving_speed" default="0.5"/>
+    <arg name="moving_start_s" default="6.0"/>
+    <arg name="odom_yaw_bias" default="0.03" doc="rad/s of yaw drift added to the fake odometry"/>
+    <arg name="odom_speed_error" default="0.04" doc="relative speed scale error of the fake odometry"/>
+
+    <node pkg="tf" type="static_transform_publisher" name="laser_broadcaster"
+          args="0 0 0 0 0 0 base_link laser 100"/>
+
+    <node pkg="f1tenth_obstacle_avoidance" type="fake_car.py" name="fake_car" output="screen">
+        <param name="map_yaml" value="$(arg map_yaml)"/>
+        <param name="init_x" value="$(arg init_x)"/>
+        <param name="init_y" value="$(arg init_y)"/>
+        <param name="init_yaw" value="$(arg init_yaw)"/>
+        <param name="odom_yaw_bias" value="$(arg odom_yaw_bias)"/>
+        <param name="odom_speed_scale_error" value="$(arg odom_speed_error)"/>
+        <rosparam subst_value="true" param="obstacles">$(arg obstacles)</rosparam>
+        <param if="$(eval arg('moving_csv') != '')" name="moving_obstacle_csv" value="$(arg moving_csv)"/>
+        <param if="$(eval arg('moving_csv') != '')" name="moving_obstacle_speed" value="$(arg moving_speed)"/>
+        <param if="$(eval arg('moving_csv') != '')" name="moving_obstacle_start_s" value="$(arg moving_start_s)"/>
+    </node>
+</launch>

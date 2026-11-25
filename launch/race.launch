@@ -1,0 +1,54 @@
+<launch>
+    <!-- The whole system: localization on a saved map, racing line, obstacle avoidance and pure pursuit.
+
+         Real car:  roslaunch f1tenth_obstacle_avoidance race.launch map:=$HOME/maps/track.yaml racing_line:=$HOME/racing_line.csv
+         Dry run:   roslaunch f1tenth_obstacle_avoidance race.launch fake:=true map:=... racing_line:=... obstacles:="[[3.0,5.0,0.12]]"
+    -->
+    <arg name="map" doc="Full path of the map yaml file"/>
+    <arg name="racing_line" default="$(env HOME)/racing_line.csv" doc="CSV from tools/plan_racing_line.py"/>
+    <arg name="fake" default="false" doc="Dry run with the fake car instead of the real hardware"/>
+
+    <arg name="max_speed" default="1.0"/>
+    <arg name="avoid_speed" default="0.7"/>
+
+    <!-- Where the car starts, in the map frame (the origin if the map was built from the start line) -->
+    <arg name="init_x" default="0.0"/>
+    <arg name="init_y" default="0.0"/>
+    <arg name="init_yaw" default="0.0"/>
+
+    <!-- Only for fake:=true -->
+    <arg name="obstacles" default="[]"/>
+    <arg name="moving_csv" default=""/>
+    <arg name="moving_speed" default="0.5"/>
+
+    <group unless="$(arg fake)">
+        <include file="$(find f1tenth_obstacle_avoidance)/launch/hardware.launch"/>
+    </group>
+    <group if="$(arg fake)">
+        <include file="$(find f1tenth_obstacle_avoidance)/launch/fake_car.launch">
+            <arg name="map_yaml" value="$(arg map)"/>
+            <arg name="init_x" value="$(arg init_x)"/>
+            <arg name="init_y" value="$(arg init_y)"/>
+            <arg name="init_yaw" value="$(arg init_yaw)"/>
+            <arg name="obstacles" value="$(arg obstacles)"/>
+            <arg name="moving_csv" value="$(arg moving_csv)"/>
+            <arg name="moving_speed" value="$(arg moving_speed)"/>
+        </include>
+    </group>
+
+    <include file="$(find f1tenth_obstacle_avoidance)/launch/localization.launch">
+        <arg name="map" value="$(arg map)"/>
+        <arg name="initial_x" value="$(arg init_x)"/>
+        <arg name="initial_y" value="$(arg init_y)"/>
+        <arg name="initial_yaw" value="$(arg init_yaw)"/>
+    </include>
+
+    <node pkg="f1tenth_obstacle_avoidance" type="racing_line_publisher.py" name="racing_line_publisher" output="screen">
+        <param name="file" value="$(arg racing_line)"/>
+    </node>
+
+    <include file="$(find f1tenth_obstacle_avoidance)/launch/lidar_planner.launch">
+        <arg name="max_speed" value="$(arg max_speed)"/>
+        <arg name="avoid_speed" value="$(arg avoid_speed)"/>
+    </include>
+</launch>

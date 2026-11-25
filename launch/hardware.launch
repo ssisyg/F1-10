@@ -1,0 +1,49 @@
+<launch>
+    <!-- Sensor, motor and odometry bring-up for the F1/10 car.
+         Hokuyo LiDAR over Ethernet, VESC over USB (same hardware as the 2025 Summer RCPSL F1/10 project).
+         Localization is not started here: use mapping.launch (build a map) or race.launch (use a map). -->
+
+    <arg name="lidar_ip" default="192.168.0.10" doc="IP address of the Hokuyo LiDAR"/>
+    <arg name="vesc_port" default="/dev/ttyACM0" doc="Serial port of the VESC"/>
+
+    <!-- Calibration of the car (see README, "Before the first run") -->
+    <arg name="max_duty" default="0.2" doc="Hard limit on the motor duty cycle"/>
+    <arg name="speed_to_duty" default="0.1" doc="Duty cycle per m/s (uncalibrated, measure your car)"/>
+    <arg name="speed_to_erpm_gain" default="4614.0" doc="ERPM per m/s, used for the odometry (F1TENTH default)"/>
+    <arg name="steering_inverted" default="false" doc="Set true if the wheels turn the wrong way"/>
+
+    <!-- Hokuyo LiDAR driver. Angles are in radians; values outside of the sensor range are clipped by urg_node. -->
+    <node pkg="urg_node" type="urg_node" name="hokuyo_lidar" output="screen">
+        <param name="ip_address" value="$(arg lidar_ip)"/>
+        <param name="ip_port" value="10940"/>
+        <param name="frame_id" value="laser"/>
+        <param name="angle_min" value="-2.356"/>
+        <param name="angle_max" value="2.356"/>
+        <param name="min_range" value="0.20"/>
+    </node>
+
+    <!-- LiDAR position on the car: edit if the LiDAR is not above the middle of the base_link frame -->
+    <node pkg="tf" type="static_transform_publisher" name="laser_broadcaster"
+          args="0 0 0 0 0 0 base_link laser 100"/>
+
+    <!-- VESC driver (https://github.com/f1tenth/vesc) -->
+    <node pkg="vesc_driver" type="vesc_driver_node" name="vesc_driver" output="screen">
+        <param name="port" value="$(arg vesc_port)"/>
+        <param name="duty_cycle_min" value="-1.0"/>
+        <param name="duty_cycle_max" value="1.0"/>
+        <param name="use_imu" value="false"/>
+    </node>
+
+    <!-- /cmd_vel -> VESC motor and servo commands (with watchdog) -->
+    <node pkg="f1tenth_obstacle_avoidance" type="cmdvel_to_vesc.py" name="cmdvel_to_vesc" output="screen">
+        <param name="max_duty" value="$(arg max_duty)"/>
+        <param name="speed_to_duty" value="$(arg speed_to_duty)"/>
+        <param name="steering_inverted" value="$(arg steering_inverted)"/>
+    </node>
+
+    <!-- Wheel odometry (odom -> base_link) from the VESC speed and the commanded steering -->
+    <node pkg="f1tenth_obstacle_avoidance" type="vesc_odom.py" name="vesc_odom" output="screen">
+        <param name="speed_to_erpm_gain" value="$(arg speed_to_erpm_gain)"/>
+        <param name="steering_inverted" value="$(arg steering_inverted)"/>
+    </node>
+</launch>
